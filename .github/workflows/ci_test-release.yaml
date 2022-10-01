@@ -1,0 +1,74 @@
+name: CI for test and release actions
+
+on:
+  push:
+    branches:
+      - 'main'
+      - 'feature/**'
+      - 'fix/**'
+  pull_request:
+    branches:
+      - 'main'
+
+jobs:
+
+  test:
+    runs-on: ubuntu-22.04  # TODO: change to "ubuntu-latest" if "ubuntu-latest" = "ubuntu-22.04"
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v2
+      - name: Test project
+        run: ./test/test.sh
+
+  release:
+    needs: test
+    if: github.event_name == 'push' && github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v2
+      - name: Perform tagging if version has changed
+        id: tagging
+        uses: brettaufheber/auto-tagging-action@v1
+        with:
+          command: ./docker-start.sh --version
+          snapshot-pattern: ^0\.  # major part is 0
+          tag-prefix: v
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Login to GitHub container registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish to GitHub container registry (base image RHEL UBI)
+        if: ${{ steps.tagging.outputs.tag-created == 'yes' && steps.tagging.outputs.version-major-minor-patch }}
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          context: .
+          file: ./Dockerfile-rhel
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/artifact-resolution:rhel
+            ghcr.io/${{ github.repository_owner }}/artifact-resolution:${{ steps.tagging.outputs.version-major }}-rhel
+            ghcr.io/${{ github.repository_owner }}/artifact-resolution:${{ steps.tagging.outputs.version-major-minor }}-rhel
+            ghcr.io/${{ github.repository_owner }}/artifact-resolution:${{ steps.tagging.outputs.version-major-minor-patch }}-rhel
+      - name: Publish to GitHub container registry (base image Ubuntu)
+        if: ${{ steps.tagging.outputs.tag-created == 'yes' && steps.tagging.outputs.version-major-minor-patch }}
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          context: .
+          file: ./Dockerfile
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/artifact-resolution:ubuntu
+            ghcr.io/${{ github.repository_owner }}/artifact-resolution:${{ steps.tagging.outputs.version-major }}-ubuntu
+            ghcr.io/${{ github.repository_owner }}/artifact-resolution:${{ steps.tagging.outputs.version-major-minor }}-ubuntu
+            ghcr.io/${{ github.repository_owner }}/artifact-resolution:${{ steps.tagging.outputs.version-major-minor-patch }}-ubuntu
+            ghcr.io/${{ github.repository_owner }}/artifact-resolution:latest
+            ghcr.io/${{ github.repository_owner }}/artifact-resolution:${{ steps.tagging.outputs.version-major }}
+            ghcr.io/${{ github.repository_owner }}/artifact-resolution:${{ steps.tagging.outputs.version-major-minor }}
+            ghcr.io/${{ github.repository_owner }}/artifact-resolution:${{ steps.tagging.outputs.version-major-minor-patch }}
