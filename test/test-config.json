@@ -1,0 +1,31 @@
+{
+  "entries": [
+    {
+      "task": "resolve-web",
+      "arguments": {
+        "url": "https://repo1.maven.org/maven2/org/slf4j/slf4j-api/2.0.3/slf4j-api-2.0.3.jar",
+        "headers": [],
+        "target-dir": "./tmp/test_resolve_web"
+      }
+    },
+    {
+      "task": "resolve-git",
+      "arguments": {
+        "url": "https://github.com/qos-ch/slf4j.git",
+        "branch": "v_2.0.3",
+        "source-path": "slf4j-api",
+        "target-dir": "./tmp/test_resolve_git"
+      }
+    },
+    {
+      "task": "resolve-maven",
+      "arguments": {
+        "remote-repo-urls": [],
+        "local-repo-dir": null,
+        "mirror-url": null,
+        "artifact": "org.slf4j:slf4j-api:2.0.3",
+        "target-dir": "./tmp/test_resolve_maven"
+      }
+    }
+  ]
+}
