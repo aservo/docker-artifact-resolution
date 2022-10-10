@@ -16,8 +16,8 @@ function main {
   # parse arguments
   OPTIONS_PARSED=$(
     getopt \
-      --options 'r:x:d:u:g:m:' \
-      --longoptions 'url:,headers:,target-dir:,target-user:,target-group:,target-mode:' \
+      --options 'r:x:d:u:g:m:c:' \
+      --longoptions 'url:,headers:,target-dir:,target-user:,target-group:,target-mode:,cache-dir:' \
       --name "$SELF_NAME" \
       -- "$@"
   )
@@ -52,6 +52,10 @@ function main {
         TARGET_MODE="$2"
         shift 2
         ;;
+      -c | --cache-dir)
+        CACHE_DIR="$2"
+        shift 2
+        ;;
       --)
         shift 1
         break
@@ -74,26 +78,40 @@ function main {
 function resolve {
 
   local TEMPDIR
+  local HASH
   local CURL_COMMAND
   local HTTP_STATUS_CODE
 
   TEMPDIR="$(mktemp -d)"
 
-  # shellcheck disable=SC2089
-  CURL_COMMAND="curl -O -J --silent --write-out '%{http_code}' --output-dir '$TEMPDIR' '$URL'"
+  HASH="$("$UTILS" make_hash "$URL")"
 
-  while IFS= read -r line; do
-    if [[ ! "$line" =~ ^[:space:]*$ ]]; then
-      # shellcheck disable=SC2089
-      CURL_COMMAND="$CURL_COMMAND -H '$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')'"
+  if [[ -n "${CACHE_DIR:-}" ]] && "$UTILS" cache_entry_exists "$HASH" "$CACHE_DIR"; then
+    echo "$SELF_NAME: read web artifact from cache"
+    "$UTILS" read_cache_entry "$HASH" "$CACHE_DIR" "$TEMPDIR"
+  else
+
+    # shellcheck disable=SC2089
+    CURL_COMMAND="curl -O -J --silent --write-out '%{http_code}' --output-dir '$TEMPDIR' '$URL'"
+
+    while IFS= read -r line; do
+      if [[ ! "$line" =~ ^[:space:]*$ ]]; then
+        # shellcheck disable=SC2089
+        CURL_COMMAND="$CURL_COMMAND -H '$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')'"
+      fi
+    done <<< "${HEADERS:-}"
+
+    HTTP_STATUS_CODE="$(eval "$CURL_COMMAND")"
+
+    if [[ "$HTTP_STATUS_CODE" -ne 200 ]]; then
+        echo "$SELF_NAME: cannot download file: $URL" >&2
+        exit 1
     fi
-  done <<< "${HEADERS:-}"
 
-  HTTP_STATUS_CODE="$(eval "$CURL_COMMAND")"
+  fi
 
-  if [[ "$HTTP_STATUS_CODE" -ne 200 ]]; then
-      echo "$SELF_NAME: cannot download file: $URL" >&2
-      exit 1
+  if [[ -n "${CACHE_DIR:-}" ]] && ! "$UTILS" cache_entry_exists "$HASH" "$CACHE_DIR"; then
+    "$UTILS" write_cache_entry "$HASH" "" "$CACHE_DIR" "$TEMPDIR"
   fi
 
   "$UTILS" copy_files "$TEMPDIR" "$TARGET_DIR" \

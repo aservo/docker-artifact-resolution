@@ -16,8 +16,8 @@ function main {
   # parse arguments
   OPTIONS_PARSED=$(
     getopt \
-      --options 'r:l:s:a:d:u:g:m:' \
-      --longoptions 'remote-repo-urls:,local-repo-dir:,mirror-url:,artifact:,target-dir:,target-user:,target-group:,target-mode:' \
+      --options 'r:l:s:a:d:u:g:m:c:' \
+      --longoptions 'remote-repo-urls:,local-repo-dir:,mirror-url:,artifact:,target-dir:,target-user:,target-group:,target-mode:,cache-dir:' \
       --name "$SELF_NAME" \
       -- "$@"
   )
@@ -60,6 +60,10 @@ function main {
         TARGET_MODE="$2"
         shift 2
         ;;
+      -c | --cache-dir)
+        CACHE_DIR="$2"
+        shift 2
+        ;;
       --)
         shift 1
         break
@@ -82,8 +86,11 @@ function main {
 function resolve {
 
   local TEMPDIR
+  local HASH
 
   TEMPDIR="$(mktemp -d)"
+
+  HASH="$("$UTILS" make_hash "${ARTIFACT:-}")"
 
   echo '<settings>' > "$TEMPDIR/settings.xml"
   write_maven_settings_local_repository "$TEMPDIR"
@@ -94,11 +101,22 @@ function resolve {
 
   if [[ -n "${ARTIFACT:-}" ]]; then
 
-    mvn \
-      --global-settings "$TEMPDIR/settings.xml" \
-      "org.apache.maven.plugins:maven-dependency-plugin:$MAVEN_DEPENDENCY_PLUGIN_VERSION:copy" \
-      "-Dproject.basedir=$TEMPDIR" \
-      "-Dartifact=$ARTIFACT"
+    if [[ -n "${CACHE_DIR:-}" ]] && "$UTILS" cache_entry_exists "$HASH" "$CACHE_DIR"; then
+      echo "$SELF_NAME: read Maven artifact from cache"
+      "$UTILS" read_cache_entry "$HASH" "$CACHE_DIR" "$TEMPDIR/target/dependency"
+    else
+
+      mvn \
+        --global-settings "$TEMPDIR/settings.xml" \
+        "org.apache.maven.plugins:maven-dependency-plugin:$MAVEN_DEPENDENCY_PLUGIN_VERSION:copy" \
+        "-Dproject.basedir=$TEMPDIR" \
+        "-Dartifact=$ARTIFACT"
+
+    fi
+
+    if [[ -n "${CACHE_DIR:-}" ]] && ! "$UTILS" cache_entry_exists "$HASH" "$CACHE_DIR"; then
+      "$UTILS" write_cache_entry "$HASH" "$ARTIFACT" "$CACHE_DIR" "$TEMPDIR/target/dependency"
+    fi
 
     "$UTILS" copy_files "$TEMPDIR/target/dependency" "$TARGET_DIR" \
       "${TARGET_USER:-}" "${TARGET_GROUP:-}" "${TARGET_MODE:-}"

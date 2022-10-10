@@ -16,8 +16,8 @@ function main {
   # parse arguments
   OPTIONS_PARSED=$(
     getopt \
-      --options 'r:b:s:d:u:g:m:' \
-      --longoptions 'url:,branch:,source-path:,target-dir:,target-user:,target-group:,target-mode:' \
+      --options 'r:b:s:d:u:g:m:c:' \
+      --longoptions 'url:,branch:,source-path:,target-dir:,target-user:,target-group:,target-mode:,cache-dir:' \
       --name "$SELF_NAME" \
       -- "$@"
   )
@@ -56,6 +56,10 @@ function main {
         TARGET_MODE="$2"
         shift 2
         ;;
+      -c | --cache-dir)
+        CACHE_DIR="$2"
+        shift 2
+        ;;
       --)
         shift 1
         break
@@ -78,6 +82,7 @@ function main {
 function resolve {
 
   local TEMPDIR
+  local HASH
 
   TEMPDIR="$(mktemp -d)"
 
@@ -85,23 +90,36 @@ function resolve {
     SOURCE_PATH='.'
   fi
 
-  if [[ -n "${GIT_USERNAME:-}" ]] && [[ -n "${GIT_PASSWORD:-}" ]]; then
-    git config --global credential.helper \
-      '!f() { sleep 1; echo "username=${GIT_USERNAME}"; echo "password=${GIT_PASSWORD}"; }; f'
-  fi
+  HASH="$("$UTILS" make_hash "$URL" "${BRANCH:-}" "$SOURCE_PATH")"
 
-  if [[ -n "${BRANCH:-}" ]]; then
-    git clone --branch "$BRANCH" --single-branch --no-checkout --depth 1 "$URL" "$TEMPDIR/repo"
+  if [[ -n "${CACHE_DIR:-}" ]] && "$UTILS" cache_entry_exists "$HASH" "$CACHE_DIR"; then
+    echo "$SELF_NAME: read Git artifact from cache"
+    "$UTILS" read_cache_entry "$HASH" "$CACHE_DIR" "$TEMPDIR/result"
   else
-    git clone --single-branch --no-checkout --depth 1 "$URL" "$TEMPDIR/repo"
+
+    if [[ -n "${GIT_USERNAME:-}" ]] && [[ -n "${GIT_PASSWORD:-}" ]]; then
+      git config --global credential.helper \
+        '!f() { sleep 1; echo "username=${GIT_USERNAME}"; echo "password=${GIT_PASSWORD}"; }; f'
+    fi
+
+    if [[ -n "${BRANCH:-}" ]]; then
+      git clone --branch "$BRANCH" --single-branch --no-checkout --depth 1 "$URL" "$TEMPDIR/repo"
+    else
+      git clone --single-branch --no-checkout --depth 1 "$URL" "$TEMPDIR/repo"
+    fi
+
+    git config --global --unset credential.helper || true
+
+    git -C "$TEMPDIR/repo" checkout HEAD "$SOURCE_PATH"
+    rm -rf "$TEMPDIR/repo/.git"
+    mkdir "$TEMPDIR/result"
+    cp -rfp "$TEMPDIR/repo/$SOURCE_PATH" "$TEMPDIR/result"
+
   fi
 
-  git config --global --unset credential.helper || true
-
-  git -C "$TEMPDIR/repo" checkout HEAD "$SOURCE_PATH"
-  rm -rf "$TEMPDIR/repo/.git"
-  mkdir "$TEMPDIR/result"
-  cp -vrp "$TEMPDIR/repo/$SOURCE_PATH" "$TEMPDIR/result"
+  if [[ -n "${CACHE_DIR:-}" ]] && ! "$UTILS" cache_entry_exists "$HASH" "$CACHE_DIR"; then
+    "$UTILS" write_cache_entry "$HASH" "" "$CACHE_DIR" "$TEMPDIR/result"
+  fi
 
   "$UTILS" copy_files "$TEMPDIR/result" "$TARGET_DIR" \
     "${TARGET_USER:-}" "${TARGET_GROUP:-}" "${TARGET_MODE:-}"
