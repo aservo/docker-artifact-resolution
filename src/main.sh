@@ -52,6 +52,9 @@ function main {
       resolve-maven)
         "$SELF_DIR/resolve-maven.sh" "$@"
         ;;
+      resolve-using-config)
+        "$SELF_DIR/resolve-using-config.sh" "$@"
+        ;;
       *)
         echo "$SELF_NAME: require a valid task" >&2
         exit 1
