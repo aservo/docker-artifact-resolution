@@ -8,6 +8,7 @@ function main {
   SELF_PATH="$(readlink -f "$0")"
   SELF_NAME="$(basename "$SELF_PATH")"
   SELF_DIR="$(dirname "$SELF_PATH")"
+  CACHING_EXPLICITLY=false
 
   # load project variables
   source "$SELF_DIR/project.env"
@@ -33,6 +34,7 @@ function main {
         ;;
       -c | --cache-dir)
         CACHE_DIR="$2"
+        CACHING_EXPLICITLY=true
         shift 2
         ;;
       --)
@@ -62,15 +64,15 @@ function resolve {
 
     COMMAND="$SELF_DIR/main.sh '$(echo "$var" | jq -r '.task')'"
 
-    if [[ -n "${CACHE_DIR:-}" ]]; then
+    if [[ -n "${CACHE_DIR:-}" ]] && "$CACHING_EXPLICITLY"; then
       COMMAND="$COMMAND --cache-dir '$CACHE_DIR'"
     fi
 
     COMMAND="$COMMAND$(
       echo "$var" |
-        jq '.arguments' |
-        jq 'del(.. | select(. == null)) | del(.. | select(. == "")) | del(.. | select(. == []))' |
-        jq '. | to_entries | map({key, value: (.value | if type == "array" then (. | join("\n")) else . end)})' |
+        jq '.arguments | to_entries' |
+        jq '. | map({key, value: (.value | if . == [] or . == null then "" else . end)})' |
+        jq '. | map({key, value: (.value | if type == "array" then (. | join("\n")) else . end)})' |
         jq -j '.[] | ("--" + .key | @sh) + " " + (.value | @sh) | " " + .'
     )"
 
