@@ -102,7 +102,7 @@ function resolve {
   if [[ -n "${ARTIFACT:-}" ]]; then
 
     if [[ -n "${CACHE_DIR:-}" ]] && "$UTILS" cache_entry_exists "$HASH" "$CACHE_DIR"; then
-      echo "$SELF_NAME: read Maven artifact from cache"
+      echo "$SELF_NAME: cache hit - read Maven artifact from cache: $ARTIFACT"
       "$UTILS" read_cache_entry "$HASH" "$CACHE_DIR" "$TEMPDIR/target/dependency"
     else
 
@@ -115,6 +115,7 @@ function resolve {
     fi
 
     if [[ -n "${CACHE_DIR:-}" ]] && ! "$UTILS" cache_entry_exists "$HASH" "$CACHE_DIR"; then
+      echo "$SELF_NAME: cache miss - write Maven artifact to cache: $ARTIFACT"
       "$UTILS" write_cache_entry "$HASH" "$ARTIFACT" "$CACHE_DIR" "$TEMPDIR/target/dependency"
     fi
 

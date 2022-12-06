@@ -93,7 +93,7 @@ function resolve {
   HASH="$("$UTILS" make_hash "$URL" "${BRANCH:-}" "$SOURCE_PATH")"
 
   if [[ -n "${CACHE_DIR:-}" ]] && "$UTILS" cache_entry_exists "$HASH" "$CACHE_DIR"; then
-    echo "$SELF_NAME: read Git artifact from cache"
+    echo "$SELF_NAME: cache hit - read Git artifact from cache: URL=$URL branch=${BRANCH:-} source-path=$SOURCE_PATH"
     "$UTILS" read_cache_entry "$HASH" "$CACHE_DIR" "$TEMPDIR/result"
   else
 
@@ -118,6 +118,7 @@ function resolve {
   fi
 
   if [[ -n "${CACHE_DIR:-}" ]] && ! "$UTILS" cache_entry_exists "$HASH" "$CACHE_DIR"; then
+    echo "$SELF_NAME: cache miss - write Git artifact to cache: URL=$URL branch=${BRANCH:-} source-path=$SOURCE_PATH"
     "$UTILS" write_cache_entry "$HASH" "" "$CACHE_DIR" "$TEMPDIR/result"
   fi
 
