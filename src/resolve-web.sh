@@ -87,7 +87,7 @@ function resolve {
   HASH="$("$UTILS" make_hash "$URL")"
 
   if [[ -n "${CACHE_DIR:-}" ]] && "$UTILS" cache_entry_exists "$HASH" "$CACHE_DIR"; then
-    echo "$SELF_NAME: read web artifact from cache"
+    echo "$SELF_NAME: cache hit - read web artifact from cache: $URL"
     "$UTILS" read_cache_entry "$HASH" "$CACHE_DIR" "$TEMPDIR"
   else
 
@@ -111,6 +111,7 @@ function resolve {
   fi
 
   if [[ -n "${CACHE_DIR:-}" ]] && ! "$UTILS" cache_entry_exists "$HASH" "$CACHE_DIR"; then
+    echo "$SELF_NAME: cache miss - write web artifact to cache: $URL"
     "$UTILS" write_cache_entry "$HASH" "" "$CACHE_DIR" "$TEMPDIR"
   fi
 
