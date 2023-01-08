@@ -112,7 +112,7 @@ function resolve {
 
   if [[ -n "${CACHE_DIR:-}" ]] && ! "$UTILS" cache_entry_exists "$HASH" "$CACHE_DIR"; then
     echo "$SELF_NAME: cache miss - write web artifact to cache: $URL"
-    "$UTILS" write_cache_entry "$HASH" "" "$CACHE_DIR" "$TEMPDIR"
+    "$UTILS" write_cache_entry "$HASH" "$URL" "$CACHE_DIR" "$TEMPDIR"
   fi
 
   "$UTILS" copy_files "$TEMPDIR" "$TARGET_DIR" \
