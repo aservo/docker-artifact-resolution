@@ -226,6 +226,9 @@ This task only uses the following parameters. All other values must be set via t
 ]
 ----
 
+== About artifact caching
+Sometimes there is the requirement to mirror artifacts to guarantee their permanent availability. Read link:caching.adoc[here] to learn more about the caching feature.
+
 == License
 
 Copyright (c) 2022 ASERVO Software GmbH

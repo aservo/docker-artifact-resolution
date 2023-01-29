@@ -42,6 +42,10 @@ function checksum {
   echo -n "$1" | sha256sum | cut -f 1 -d ' '
 }
 
+# The hash calculation
+# This function takes zero, one or more arguments, to create a SHA-256 checksum for each argument. If there are
+# multiple arguments, the checksums are concatenated by a single space delimiter. This string is used to create a final
+# hash string.
 function make_hash {
 
   local VALUE
