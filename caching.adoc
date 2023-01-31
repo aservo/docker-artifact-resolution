@@ -1,0 +1,18 @@
+== About artifact caching
+Sometimes there is the requirement to mirror artifacts to guarantee their availability. The caching feature is disabled by default. To enable it, a cache directory must be specified. If there is a cache miss the artifacts will be saved and if there is a cache hit an unnecessary download action is skipped.
+
+NOTE: There is currently no mechanism for deleting obsolete cache entries. However, the metadata of the cache can be used to implement one or more cleanup strategies.
+
+Each cache entry gets its own subdirectory under the specified cache directory. The name of such a subdirectory is a hash, calculated from attributes that make the artifacts unique. The hash calculation is documented in the file _src/utils.sh_ at function _make_hash_. Every cache entry includes a file _cache-entry.txt_ with some metadata.
+
+.File structure of a cache entry
+* /<entry-hash>/cache-entry.txt
+* /<entry-hash>/files/<my-artifact>
+
+.Example metadata
+[source]
+----
+ENTRY_ID=1d38d6b91bb668badebb6a72b1c17560b6fdf5d5e33298a3eea2928d64de03db
+ENTRY_NAME=org.slf4j:slf4j-api:2.0.3
+DATE_TIME=2023-01-01T10:00:00+01:00
+----

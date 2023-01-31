@@ -1,18 +1,242 @@
 = docker-artifact-resolution
 
-=== License
+This project allows to perform downloads for different types of artifacts.
+The main use case for this tool is downloading plugins, themes and other files inside a Kubernetes init-container to customize applications.
+
+.Supported artifact types
+* A file via regular web call
+* One or more files from a Git repository in a specific directory
+* An Artifact from a Maven2 repository
+
+Other artifact types are planned.
+
+== Usage
+
+The tool expects a task name as the fist argument to perform downloads with a specific strategy.
+
+[cols="7,7,15,1",options="header"]
+|===
+
+|command line parameter
+|environment variable
+|description
+|required
+
+4+|Task: `resolve-web` *grab files via regular web call*
+
+|`&#8209;r` +
+`&#8209;&#8209;url`
+|`URL`
+|The file to be downloaded.
+|yes
+
+|`&#8209;x` +
+`&#8209;&#8209;headers`
+|`HEADERS`
+|A newline-separated list of headers used for the web call.
+|no
+
+4+|Task: `resolve-git` *grab files via Git-clone action*
+
+|`&#8209;r` +
+`&#8209;&#8209;url`
+|`URL`
+|The URL or path to a Git repository.
+|yes
+
+|`&#8209;b` +
+`&#8209;&#8209;branch`
+|`BRANCH`
+|A specific branch used for the clone action. If unspecified the default branch is used.
+|no
+
+|`&#8209;s` +
+`&#8209;&#8209;source&#8209;path`
+|`SOURCE_PATH`
+|A path to a specific subdirectory or file which will be cloned. If unspecified the whole repository will be cloned.
+|no
+
+|
+|`GIT_USERNAME`
+|The Git username as part of the credentials.
+|no
+
+|
+|`GIT_PASSWORD`
+|The user password as part of the credentials.
+|no
+
+4+|Task: `resolve-maven` *grab files using Maven*
+
+|`&#8209;r` +
+`&#8209;&#8209;remote&#8209;repo&#8209;urls`
+|`REMOTE_REPO_URLS`
+|A newline-separated list of Maven2 remote repositories.
+|no
+
+|`&#8209;l` +
+`&#8209;&#8209;local&#8209;repo&#8209;dir`
+|`LOCAL_REPO_DIR`
+|The path to the local Maven2 repository.
+|no
+
+|`&#8209;s` +
+`&#8209;&#8209;mirror&#8209;url`
+|`MIRROR_URL`
+|The URL to a Maven2 mirror.
+|no
+
+|`&#8209;a` +
+`&#8209;&#8209;artifact`
+|`ARTIFACT`
+|The Maven2 artifact name. `groupId:artifactId:version`
+|yes
+
+|
+|`MAVEN_MIRROR_USERNAME`
+|The username used for the Maven mirror as part of the credentials.
+|no
+
+|
+|`MAVEN_MIRROR_PASSWORD`
+|The user password used for the Maven mirror as part of the credentials.
+|no
+
+4+|*Parameters used for all artifact types* +
+The parameters below can be used for all tasks except `resolve-using-config`.
+
+|`&#8209;d` +
+`&#8209;&#8209;target&#8209;dir`
+|`TARGET_DIR`
+|The target directory where the artifacts will be deployed.
+|yes
+
+|`&#8209;u` +
+`&#8209;&#8209;target&#8209;user`
+|`TARGET_USER`
+|Specifies the user for deployed files.
+|no
+
+|`&#8209;g` +
+`&#8209;&#8209;target&#8209;group`
+|`TARGET_GROUP`
+|Specifies the group for deployed files.
+|no
+
+|`&#8209;m` +
+`&#8209;&#8209;target&#8209;mode`
+|`TARGET_MODE`
+|Specifies the mode for deployed files.
+|no
+
+|`&#8209;c` +
+`&#8209;&#8209;cache&#8209;dir`
+|`CACHE_DIR`
+|Caching artifacts is enabled if a path to the cache directory is defined. See feature description below.
+|no
+
+4+|Task: `resolve-using-config` *grab files of any kind by using a JSON file* +
+This task only uses the following parameters. All other values must be set via the configuration file.
+
+|`&#8209;j` +
+`&#8209;&#8209;json&#8209;config&#8209;file`
+|`JSON_CONFIG_FILE`
+|The path to a JSON file which contains a list of artifacts. See example below.
+|yes
+
+|`&#8209;c` +
+`&#8209;&#8209;cache&#8209;dir`
+|`CACHE_DIR`
+|Caching artifacts is enabled if a path is defined. This setting is used for all downloads described in the JSON file. See feature description below.
+|no
+
+4+|*Other parameters*
+
+|`&#8209;h` +
+`&#8209;&#8209;help`
+|
+|Shows the help text and ignores other arguments.
+|
+
+|`&#8209;v` +
+`&#8209;&#8209;version`
+|
+|Shows the tool version and ignores other arguments.
+|
+
+|===
+
+=== Examples
+
+.Example of a regular web call using the `resolve-web` task
+[source,bash]
+----
+./src/main.sh resolve-web --url "https://repo1.maven.org/maven2/org/slf4j/slf4j-api/2.0.3/slf4j-api-2.0.3.jar"
+----
+
+.Example how to grab files from a Git repository using the `resolve-git` task
+[source,bash]
+----
+./src/main.sh resolve-git --url "https://github.com/qos-ch/slf4j.git" --branch "v_2.0.3"
+----
+
+.Example how to grab Maven artifacts using the `resolve-maven` task
+[source,bash]
+----
+## optional: resolve Maven artifacts behind a proxy
+# export MAVEN_OPTS="-Dhttp.proxyHost=... -Dhttp.proxyHost=... -Dhttp.nonLocalHosts=..."
+
+./src/main.sh resolve-maven --artifact "org.slf4j:slf4j-api:2.0.3"
+----
+
+.Example how to grab files using a list of artifacts with the `resolve-using-config` task
+[source,bash]
+----
+./src/main.sh resolve-using-config --json-config-file "my-file.json"
+----
+
+.Example artifact list
+[source,json]
+----
+[
+  {
+    "task": "resolve-web",
+    "arguments": {
+      "url": "https://repo1.maven.org/maven2/org/slf4j/slf4j-api/2.0.3/slf4j-api-2.0.3.jar",
+      "headers": [],
+      "target-dir": "./my-output-dir"
+    }
+  },
+  {
+    "task": "resolve-git",
+    "arguments": {
+      "url": "https://github.com/qos-ch/slf4j.git",
+      "branch": "v_2.0.3",
+      "source-path": "slf4j-api",
+      "target-dir": "./my-output-dir"
+    }
+  },
+  {
+    "task": "resolve-maven",
+    "arguments": {
+      "artifact": "org.slf4j:slf4j-api:2.0.3",
+      "target-dir": "./my-output-dir"
+    }
+  }
+]
+----
+
+== About artifact caching
+Sometimes there is the requirement to mirror artifacts to guarantee their permanent availability. Read link:caching.adoc[here] to learn more about the caching feature.
+
+== License
 
 Copyright (c) 2022 ASERVO Software GmbH
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
 _http://www.apache.org/licenses/LICENSE-2.0_
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and limitations under the License.
