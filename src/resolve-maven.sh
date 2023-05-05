@@ -109,6 +109,7 @@ function resolve {
     else
 
       mvn \
+        --legacy-local-repository \
         --global-settings "$TEMPDIR/settings.xml" \
         "org.apache.maven.plugins:maven-dependency-plugin:$MAVEN_DEPENDENCY_PLUGIN_VERSION:copy" \
         "-Dproject.basedir=$TEMPDIR" \
@@ -127,6 +128,7 @@ function resolve {
   else
 
     mvn \
+      --legacy-local-repository \
       --global-settings "$TEMPDIR/settings.xml" \
       "org.apache.maven.plugins:maven-dependency-plugin:$MAVEN_DEPENDENCY_PLUGIN_VERSION:get" \
       "-Dartifact=org.apache.maven.plugins:maven-dependency-plugin:$MAVEN_DEPENDENCY_PLUGIN_VERSION"
