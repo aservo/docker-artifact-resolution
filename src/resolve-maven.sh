@@ -9,6 +9,8 @@ function main {
   SELF_NAME="$(basename "$SELF_PATH")"
   SELF_DIR="$(dirname "$SELF_PATH")"
   UTILS="$SELF_DIR/utils.sh"
+  LOCAL_REPO_ORIG_DIR="$HOME/.m2/repository"
+  MAVEN_CENTRAL_URL="https://repo1.maven.org/maven2"
 
   # load project variables
   source "$SELF_DIR/project.env"
@@ -143,12 +145,9 @@ function write_maven_settings_local_repository {
   TEMPDIR="$1"
 
   if [[ -n "${LOCAL_REPO_DIR:-}" ]]; then
-
-    export LOCAL_REPO_DIR
-
-    # shellcheck disable=SC2016
-    echo '<localRepository>${env.LOCAL_REPO_DIR}</localRepository>' >> "$TEMPDIR/settings.xml"
-
+    echo "<localRepository>$LOCAL_REPO_DIR</localRepository>" >> "$TEMPDIR/settings.xml"
+  else
+    echo "<localRepository>$LOCAL_REPO_ORIG_DIR</localRepository>" >> "$TEMPDIR/settings.xml"
   fi
 }
 
@@ -215,6 +214,27 @@ function write_maven_settings_profiles {
     </activation>
     <repositories>' >> "$TEMPDIR/settings.xml"
 
+  if [[ -n "${LOCAL_REPO_DIR:-}" ]] && [[ -d "$LOCAL_REPO_ORIG_DIR" ]]; then
+    echo "
+      <repository>
+        <id>local-primary</id>
+        <url>file://$LOCAL_REPO_ORIG_DIR</url>
+      </repository>" >> "$TEMPDIR/settings.xml"
+  fi
+
+  echo "
+      <repository>
+        <id>central</id>
+        <url>$MAVEN_CENTRAL_URL</url>
+        <releases>
+          <enabled>true</enabled>
+          <updatePolicy>never</updatePolicy>
+        </releases>
+        <snapshots>
+          <enabled>false</enabled>
+        </snapshots>
+      </repository>" >> "$TEMPDIR/settings.xml"
+
   while IFS= read -r line; do
     if [[ ! "$line" =~ ^[:space:]*$ ]]; then
       line="$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
@@ -224,6 +244,7 @@ function write_maven_settings_profiles {
         <url>$line</url>
         <releases>
           <enabled>true</enabled>
+          <updatePolicy>never</updatePolicy>
         </releases>
         <snapshots>
           <enabled>true</enabled>
@@ -234,6 +255,31 @@ function write_maven_settings_profiles {
 
   echo '
     </repositories>
+    <pluginRepositories>' >> "$TEMPDIR/settings.xml"
+
+  if [[ -n "${LOCAL_REPO_DIR:-}" ]] && [[ -d "$LOCAL_REPO_ORIG_DIR" ]]; then
+    echo "
+      <pluginRepository>
+        <id>local-primary</id>
+        <url>file://$LOCAL_REPO_ORIG_DIR</url>
+      </pluginRepository>" >> "$TEMPDIR/settings.xml"
+  fi
+
+  echo "
+      <pluginRepository>
+        <id>central</id>
+        <url>$MAVEN_CENTRAL_URL</url>
+        <releases>
+          <enabled>true</enabled>
+          <updatePolicy>never</updatePolicy>
+        </releases>
+        <snapshots>
+          <enabled>false</enabled>
+        </snapshots>
+      </pluginRepository>" >> "$TEMPDIR/settings.xml"
+
+  echo '
+    </pluginRepositories>
   </profile>
 </profiles>' >> "$TEMPDIR/settings.xml"
 }
