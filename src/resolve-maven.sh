@@ -194,7 +194,7 @@ function write_maven_settings_mirrors {
     <id>internal-repository</id>
     <name>internal-repository</name>
     <url>${env.MIRROR_URL}</url>
-    <mirrorOf>*</mirrorOf>
+    <mirrorOf>external:*</mirrorOf>
   </mirror>
 </mirrors>' >> "$TEMPDIR/settings.xml"
 
